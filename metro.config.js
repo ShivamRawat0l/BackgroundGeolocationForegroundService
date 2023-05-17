@@ -6,7 +6,6 @@
  */
 
 module.exports = {
-  quote
   transformer: {
     getTransformOptions: async () => ({
       transform: {

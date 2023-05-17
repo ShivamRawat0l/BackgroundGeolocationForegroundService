@@ -9,6 +9,7 @@ import ReactNativeForegroundService from '@supersami/rn-foreground-service';
 import React from 'react';
 import {Button, SafeAreaView, StyleSheet, View} from 'react-native';
 import GetLocation from 'react-native-get-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BACKEND_URL = 'http://192.168.1.134:8239/';
 function App() {
@@ -26,6 +27,17 @@ function App() {
           body: JSON.stringify(location),
         })
           .then(data => {
+            AsyncStorage.getItem('location')
+              .then(data => {
+                let storageData = JSON.parse(data) ?? [];
+
+                storageData.push(location);
+                AsyncStorage.setItem('location', JSON.stringify(storageData));
+                console.log('STORAGE DATA ', storageData.length);
+              })
+              .catch(e => {
+                console.log('STORAGE ERROR', e);
+              });
             console.log(location);
           })
           .catch(e => {
@@ -45,6 +57,7 @@ function App() {
           });
       });
   };
+
   const startBackgroundFetching = () => {
     ReactNativeForegroundService.add_task(() => getUserLocation(), {
       delay: 1000,
@@ -78,43 +91,26 @@ function App() {
           title="START BACKGROUND SERVICE"
           onPress={() => {
             startBackgroundFetching();
-          }}></Button>
+          }}
+        />
         <Button
           title="STOP BACKGROUND SERVICE"
           onPress={() => {
             ReactNativeForegroundService.remove_all_tasks();
-          }}></Button>
+          }}
+        />
         <Button
           title="FETCH BACKGROUND SERVICE"
           onPress={() => {
-            fetch('http://192.168.1.134:8239/')
+            fetch(BACKEND_URL)
               .then(data => {
                 console.log(data);
               })
               .catch(e => {
                 console.log('Error', e);
               });
-          }}></Button>
-        <Button
-          title="FETCH BACKGROUND SERVICE"
-          onPress={() => {
-            fetch('http://localhost:8239/')
-              .then(data => {
-                console.log(data);
-              })
-              .catch(e => {
-                console.log('Error', e);
-              });
-          }}></Button>
-        <Button
-          title="FETCH ONLINE BACKGROUND SERVICE"
-          onPress={() => {
-            fetch(
-              'https://api.github.com/repos/javascript-tutorial/en.javascript.info/commits',
-            )
-              .then(response => response.json())
-              .then(commits => alert(commits[0].author.login));
-          }}></Button>
+          }}
+        />
       </View>
     </SafeAreaView>
   );
