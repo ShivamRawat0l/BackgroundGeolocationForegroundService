@@ -6,43 +6,81 @@
  */
 
 import ReactNativeForegroundService from '@supersami/rn-foreground-service';
-import React from 'react';
+import React, {useRef} from 'react';
 import {Button, SafeAreaView, StyleSheet, View} from 'react-native';
 import GetLocation from 'react-native-get-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BACKEND_URL = 'http://192.168.1.134:8239/';
+const DISTANCE = 600;
+
 function App() {
+  const position = useRef({});
+
+  function distance(lat1, lon1, lat2, lon2) {
+    var R = 6371; // km (change this constant to get miles)
+    var dLat = ((lat2 - lat1) * Math.PI) / 180;
+    var dLon = ((lon2 - lon1) * Math.PI) / 180;
+    var a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    var d = R * c;
+    return Math.round(d * 1000);
+  }
+
   const getUserLocation = () => {
     GetLocation.getCurrentPosition({
       enableHighAccuracy: true,
       timeout: 60000,
     })
       .then(location => {
-        fetch(BACKEND_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(location),
-        })
-          .then(data => {
-            AsyncStorage.getItem('location')
-              .then(data => {
-                let storageData = JSON.parse(data) ?? [];
+        var checkDistance = Object.keys(position.current).length
+          ? distance(
+              position.current.latitude,
+              position.current.longitude,
+              location.latitude,
+              location.longitude,
+            )
+          : 0;
 
-                storageData.push(location);
-                AsyncStorage.setItem('location', JSON.stringify(storageData));
-                console.log('STORAGE DATA ', storageData.length);
-              })
-              .catch(e => {
-                console.log('STORAGE ERROR', e);
-              });
-            console.log(location);
+        if (
+          !DISTANCE ||
+          checkDistance > DISTANCE ||
+          !Object.keys(position.current).length
+        ) {
+          position.current = {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          };
+
+          fetch(BACKEND_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(location),
           })
-          .catch(e => {
-            console.log('Error', e);
-          });
+            .then(data => {
+              AsyncStorage.getItem('location')
+                .then(data => {
+                  let storageData = JSON.parse(data) ?? [];
+                  storageData.push(location);
+                  AsyncStorage.setItem('location', JSON.stringify(storageData));
+                  console.log('STORAGE DATA ', storageData.length);
+                })
+                .catch(e => {
+                  console.log('STORAGE ERROR', e);
+                });
+              console.log(location);
+            })
+            .catch(e => {
+              console.log('Error', e);
+            });
+        }
       })
       .catch(error => {
         fetch(BACKEND_URL, {
